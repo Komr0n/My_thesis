@@ -1,0 +1,39 @@
+version: '3.9'
+
+services:
+  api:
+    build:
+      context: ./backend
+    environment:
+      - EMBEDDING_THRESHOLD=${EMBEDDING_THRESHOLD:-0.6}
+      - DB_URL=${DB_URL:-sqlite:///./face_store.db}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - ./backend/models:/app/backend/models
+      - face_db:/app/face_store
+    ports:
+      - "8000:8000"
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000/api}
+    depends_on:
+      - api
+    expose:
+      - "80"
+  nginx:
+    image: nginx:1.25-alpine
+    depends_on:
+      - frontend
+      - api
+    ports:
+      - "8080:80"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
+    environment:
+      - NGINX_HOST=localhost
+    command: ["nginx", "-g", "daemon off;"]
+
+volumes:
+  face_db:
