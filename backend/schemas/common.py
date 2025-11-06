@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, root_validator
 
 EMOTION_LABELS = ["neutral", "happy", "sad", "angry", "surprise", "fear", "disgust"]
 
@@ -82,6 +82,36 @@ class RecognizeOptions(BaseModel):
 class PipelineOptions(RecognizeOptions):
     recognize: bool = True
     emotions: bool = True
+
+
+class PipelineRequest(BaseModel):
+    payload: ImagePayload | None = None
+    options: PipelineOptions = Field(default_factory=PipelineOptions)
+
+    @root_validator(pre=True)
+    def flatten_body(cls, values: dict | None) -> dict:
+        if values is None:
+            return {}
+        if not isinstance(values, dict):
+            return values
+
+        data = dict(values)
+
+        if "payload" not in data and "image_base64" in data:
+            image_base64 = data.pop("image_base64")
+            data["payload"] = {"image_base64": image_base64}
+
+        if "options" not in data:
+            option_keys = {"recognize", "emotions", "top_k", "threshold"}
+            option_values = {
+                key: data.pop(key)
+                for key in list(data.keys())
+                if key in option_keys
+            }
+            if option_values:
+                data["options"] = option_values
+
+        return data
 
 
 class EnrollRequest(BaseModel):

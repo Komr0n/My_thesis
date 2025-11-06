@@ -4,7 +4,13 @@ from fastapi import APIRouter, Body, Depends, File, UploadFile
 
 from backend.dependencies import get_pipeline
 from backend.routers.common import read_image_from_request
-from backend.schemas.common import ImagePayload, PipelineOptions, PipelineResponse, PipelineFace, PipelineTiming
+from backend.schemas.common import (
+    PipelineOptions,
+    PipelineRequest,
+    PipelineResponse,
+    PipelineFace,
+    PipelineTiming,
+)
 
 router = APIRouter(tags=["pipeline"])
 
@@ -12,11 +18,13 @@ router = APIRouter(tags=["pipeline"])
 @router.post("/pipeline", response_model=PipelineResponse)
 async def run_pipeline(
     file: UploadFile | None = File(default=None),
-    payload: ImagePayload | None = Body(default=None),
-    options: PipelineOptions = Body(default=PipelineOptions()),
+    body: PipelineRequest | None = Body(default=None),
     pipeline=Depends(get_pipeline),
 ):
-    image = await read_image_from_request(file, payload)
+    request_payload = body.payload if body else None
+    options = body.options if body and body.options else PipelineOptions()
+
+    image = await read_image_from_request(file, request_payload)
     result = pipeline.run(
         image,
         recognize=options.recognize,
